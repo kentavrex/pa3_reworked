@@ -341,51 +341,76 @@ int send_message(Process* proc, MessageType msg_type, TransferOrder* transfer_or
     }
 }
 
-void add_to_history(BalanceHistory* record, timestamp_t current_time, balance_t cur_balance, balance_t delta) {
-    if (record->s_history_len > 0) {
-    BalanceState last_state = record->s_history[record->s_history_len -1];
-    timestamp_t last_recorded_time = last_state.s_time;
-    for (timestamp_t t = last_recorded_time + 1; t < current_time; t++) {
-      BalanceState intermediate_state = {
+BalanceState create_intermediate_state(BalanceState last_state, timestamp_t time) {
+    BalanceState intermediate_state = {
         .s_balance = last_state.s_balance,
         .s_balance_pending_in = 0,
-        .s_time = t
-        };
+        .s_time = time
+    };
+    return intermediate_state;
+}
+
+void add_intermediate_states(BalanceHistory* record, timestamp_t last_recorded_time, timestamp_t current_time) {
+    for (timestamp_t t = last_recorded_time + 1; t < current_time; t++) {
+        BalanceState intermediate_state = create_intermediate_state(record->s_history[record->s_history_len - 1], t);
         record->s_history[record->s_history_len++] = intermediate_state;
-      }
     }
-    
+}
+
+void add_new_state(BalanceHistory* record, timestamp_t current_time, balance_t cur_balance, balance_t delta) {
     BalanceState new_state = {
-      .s_balance = cur_balance,
-      .s_balance_pending_in = delta,
-      .s_time = current_time
+        .s_balance = cur_balance,
+        .s_balance_pending_in = delta,
+        .s_time = current_time
     };
     record->s_history[record->s_history_len++] = new_state;
 }
 
-int check_all_received(Process* process, MessageType type) {
-    int count = 0;
-    for (int i = 1; i < process->num_process; i++)
-    {
-        if (i != process->pid) {
-            Message msg;
-            if (receive(process, i, &msg) == -1) {
-                printf("Error while recieving messages\n");
-                return -1;
-            }
-            if (msg.s_header.s_type == type) {
-            update_lamport_time(msg.s_header.s_local_time);
-                count++;
-            }
-        }
+void add_to_history(BalanceHistory* record, timestamp_t current_time, balance_t cur_balance, balance_t delta) {
+    if (record->s_history_len > 0) {
+        BalanceState last_state = record->s_history[record->s_history_len - 1];
+        timestamp_t last_recorded_time = last_state.s_time;
+        add_intermediate_states(record, last_recorded_time, current_time);
     }
-    if (process->pid != 0 && count == process->num_process-2) { 
+
+    add_new_state(record, current_time, cur_balance, delta);
+}
+
+
+int handle_received_message(Process* process, int i, MessageType type, int* count) {
+    Message msg;
+    if (receive(process, i, &msg) == -1) {
+        printf("Error while receiving messages\n");
+        return -1;
+    }
+    if (msg.s_header.s_type == type) {
+        update_lamport_time(msg.s_header.s_local_time);
+        (*count)++;
+    }
+    return 0;
+}
+
+int check_termination_condition(Process* process, int count) {
+    if (process->pid != 0 && count == process->num_process - 2) {
         return 0;
     } else if (process->pid == 0 && count == process->num_process - 1) {
         return 0;
     }
     return -1;
 }
+
+int check_all_received(Process* process, MessageType type) {
+    int count = 0;
+    for (int i = 1; i < process->num_process; i++) {
+        if (i != process->pid) {
+            if (handle_received_message(process, i, type, &count) == -1) {
+                return -1;
+            }
+        }
+    }
+    return check_termination_condition(process, count);
+}
+
 
 Pipe** allocate_pipes(int process_count) {
     Pipe** pipes = (Pipe**) malloc(process_count * sizeof(Pipe*));
