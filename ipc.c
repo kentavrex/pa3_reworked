@@ -249,35 +249,34 @@ int read_message_from_channel(int channel_fd, Message *msg_buffer) {
     return 0;
 }
 
-int process_messages(Process *proc_info, Message *msg_buffer) {
-    Process active_proc = *proc_info;
-
-    for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
-        if (src_id == active_proc.pid) {
-            continue;
-        }
-        int channel_fd = active_proc.pipes[src_id][active_proc.pid].fd[READ];
-        int result = read_message_from_channel(channel_fd, msg_buffer);
-        if (result == 1) {
-            continue;
-        }
-        if (result < 0) {
-            fprintf(stderr, "Процесс %d: ошибка при чтении от процесса %d\n", active_proc.pid, src_id);
-            return result;
-        }
-        printf("Процесс %d: сообщение от процесса %d успешно получено и обработано\n", active_proc.pid, src_id);
-        return 0;
-    }
-
-    fprintf(stderr, "Процесс %d: не удалось получить сообщение ни от одного процесса\n", active_proc.pid);
-    return -4;
-}
-
 int receive_any(void *context, Message *msg_buffer) {
     int validation_result = validate_input(context, msg_buffer);
     if (validation_result != 0) {
         return validation_result;
     }
 
-    return process_messages((Process *)context, msg_buffer);
+    Process *proc_info = (Process *)context;
+    Process active_proc = *proc_info;
+
+    while (1) {
+        for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
+            if (src_id == active_proc.pid) {
+                continue;
+            }
+            int channel_fd = active_proc.pipes[src_id][active_proc.pid].fd[READ];
+            int result = read_message_from_channel(channel_fd, msg_buffer);
+            if (result == 1) {
+                continue;
+            }
+            if (result < 0) {
+                fprintf(stderr, "Процесс %d: ошибка при чтении от процесса %d\n", active_proc.pid, src_id);
+                return result;
+            }
+            printf("Процесс %d: сообщение от процесса %d успешно получено и обработано\n", active_proc.pid, src_id);
+            return 0;
+        }
+    }
+
+    fprintf(stderr, "Процесс %d: не удалось получить сообщение ни от одного процесса\n", active_proc.pid);
+    return -4;
 }
