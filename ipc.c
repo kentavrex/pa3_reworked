@@ -108,12 +108,12 @@ int handle_read_error(ssize_t read_status) {
         if (errno == EAGAIN) {
             return 2;
         } else {
-            perror("Ошибка при чтении данных");
+            perror("Error reading data");
             return 1;
         }
     }
     if (read_status == 0) {
-        fprintf(stderr, "Внимание: конец файла или данных нет\n");
+        fprintf(stderr, "Attention: end of file or no data\n");
         return 2;
     }
     return 0;
@@ -256,26 +256,46 @@ int read_message_body(int read_descriptor, Message *msg_buffer) {
     return 0;
 }
 
-int receive(void *process_context, local_id sender_id, Message *msg_buffer) {
-    if (validate_receive_args(process_context, msg_buffer) < 0) {
-        return -1;
-    }
+int validate_receive_arguments(void *process_context, Message *msg_buffer) {
+    return validate_receive_args(process_context, msg_buffer);
+}
 
-    Process *proc_info = (Process *)process_context;
-    int read_descriptor = get_read_descriptor(proc_info, sender_id);
+int get_read_descriptor_for_process(Process *proc_info, local_id sender_id) {
+    return get_read_descriptor(proc_info, sender_id);
+}
 
+int wait_for_message_availability(int read_descriptor, Message *msg_buffer) {
     while (1) {
         int availability_status = check_availability(read_descriptor, msg_buffer);
         if (availability_status == 1) {
             continue;
         }
         if (availability_status == 0) {
-            break;
+            return 0;
         }
     }
+    return -1;
+}
 
+int receive_message(int read_descriptor, Message *msg_buffer) {
     return read_message_body(read_descriptor, msg_buffer);
 }
+
+int receive(void *process_context, local_id sender_id, Message *msg_buffer) {
+    if (validate_receive_arguments(process_context, msg_buffer) < 0) {
+        return -1;
+    }
+
+    Process *proc_info = (Process *)process_context;
+    int read_descriptor = get_read_descriptor_for_process(proc_info, sender_id);
+
+    if (wait_for_message_availability(read_descriptor, msg_buffer) < 0) {
+        return -1;
+    }
+
+    return receive_message(read_descriptor, msg_buffer);
+}
+
 
 int validate_input(void *context, Message *msg_buffer) {
     if (context == NULL || msg_buffer == NULL) {
