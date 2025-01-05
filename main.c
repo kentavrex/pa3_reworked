@@ -3,9 +3,9 @@
 #include <asm-generic/errno.h>
 
 
-#include "util.h"
+#include "helpers.h"
 #include "common.h"
-#include "pipes_manager.h"
+#include "pipes_helper.h"
 
 
 void send_transfer_message(void *context_data, local_id initiator, local_id recipient, balance_t transfer_amount) {

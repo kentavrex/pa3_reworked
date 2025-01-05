@@ -1,6 +1,5 @@
-
-#include "util.h"
-#include "pipes_manager.h"
+#include "helpers.h"
+#include "pipes_helper.h"
 #include <fcntl.h>
 #include <unistd.h>
 

@@ -10,7 +10,7 @@
 #include <asm-generic/errno.h>
 
 #include "pa2345.h"
-#include "const.h"
+#include "base_vars.h"
 
 
 Pipe** init_pipes(int process_count, FILE* log_file_ptr);

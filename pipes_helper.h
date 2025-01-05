@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include "const.h"
+#include "base_vars.h"
 
 void close_outcoming_pipes(Process* processes, FILE* pipe_file_ptr);
 
