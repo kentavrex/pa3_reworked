@@ -163,7 +163,7 @@ void create_child_processes_and_handle_pipes(int num_processes, Pipe **pipes, in
     create_child_processes(num_processes, pipes, balances, log_pipes, log_events);
 }
 
-int verify_received_messages(Process *parent_proc, MessageType expected_type, FILE *log_events) {
+int verify_received_messages(Process *parent_proc, FILE *log_pipes, MessageType expected_type, FILE *log_events) {
     if (check_all_received(parent_proc, expected_type) != 0) {
         fprintf(stderr, "Error: Parent process failed to receive all %s messages\n", (expected_type == STARTED) ? "STARTED" : "DONE");
         cleanup(log_pipes, log_events);
@@ -172,12 +172,12 @@ int verify_received_messages(Process *parent_proc, MessageType expected_type, FI
     return 0;
 }
 
-void handle_parent_process_logic(Process *parent_proc, FILE *log_events) {
+void handle_parent_process_logic(Process *parent_proc, FILE *log_events, FILE *log_pipes) {
     fprintf(log_events, log_received_all_started_fmt, get_lamport_time(), PARENT_ID);
     bank_robbery(parent_proc, parent_proc->num_process - 1);
     send_message(parent_proc, STOP, NULL);
 
-    verify_received_messages(parent_proc, DONE, log_events);
+    verify_received_messages(parent_proc, log_pipes, DONE, log_events);
     fprintf(log_events, log_received_all_done_fmt, get_lamport_time(), PARENT_ID);
 
     histories(parent_proc);
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
 
     verify_received_messages(&parent_proc, STARTED, log_events);
 
-    handle_parent_process_logic(&parent_proc, log_events);
+    handle_parent_process_logic(&parent_proc, log_events, log_pipes);
     close_pipes_and_cleanup(&parent_proc, log_pipes, log_events);
 
     return 0;
