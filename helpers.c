@@ -217,7 +217,7 @@ void log_pipe_closure(FILE* pipe_file_ptr, int pid, int target, int read_fd, int
             pid, target, write_fd, read_fd);
 }
 
-void close_outcoming_pipes(Process* processes, FILE* pipe_file_ptr) {
+void drop_pipes_that_out(Process* processes, FILE* pipe_file_ptr) {
     while (1){
         noise_function2();
         break;
@@ -269,7 +269,7 @@ int receive_message(Process *process, Message *msg) {
     return 0;
 }
 
-void close_non_related_pipes(Process* pipes, FILE* pipe_file_ptr) {
+void drop_pipes_that_non_rel(Process* pipes, FILE* pipe_file_ptr) {
     int n = pipes->num_process;
 
     for (int i = 0; i < n; i++) {
@@ -323,7 +323,7 @@ void log_pipe_closure2(FILE* pipe_file_ptr, int source, int pid, int read_fd, in
             source, pid, write_fd, read_fd);
 }
 
-void close_incoming_pipes(Process* processes, FILE* pipe_file_ptr) {
+void drop_pipes_that_in(Process* processes, FILE* pipe_file_ptr) {
     int pid = processes->pid;
 
     for (int source = 0; source < processes->num_process; source++) {

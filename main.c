@@ -140,15 +140,15 @@ void perform_bank_operations(Process *child_proc, FILE *log_events) {
 }
 
 void close_child_pipes(Process *child_proc, FILE *log_pipes) {
-    close_outcoming_pipes(child_proc, log_pipes);
-    close_incoming_pipes(child_proc, log_pipes);
+    drop_pipes_that_out(child_proc, log_pipes);
+    drop_pipes_that_in(child_proc, log_pipes);
 }
 
 void handle_child_process(int i, int num_processes, Pipe **pipes, int *balances, FILE *log_pipes, FILE *log_events) {
     Process child_proc;
     initialize_child_process(&child_proc, i, num_processes, pipes, balances);
 
-    close_non_related_pipes(&child_proc, log_pipes);
+    drop_pipes_that_non_rel(&child_proc, log_pipes);
     log_child_start(log_events, &child_proc, i);
     check_child_start(&child_proc, log_events, i);
 
@@ -221,8 +221,8 @@ void handle_parent_process_logic(Process *parent_proc, FILE *log_events, FILE *l
 }
 
 void close_pipes_and_cleanup(Process *parent_proc, FILE *log_pipes, FILE *log_events) {
-    close_outcoming_pipes(parent_proc, log_pipes);
-    close_incoming_pipes(parent_proc, log_pipes);
+    drop_pipes_that_out(parent_proc, log_pipes);
+    drop_pipes_that_in(parent_proc, log_pipes);
     wait_for_children();
     cleanup(log_pipes, log_events);
 }
@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
     create_child_processes_and_handle_pipes(num_processes, pipes, balances, log_pipes, log_events);
 
     Process parent_proc = {.num_process = num_processes, .pipes = pipes, .pid = PARENT_ID};
-    close_non_related_pipes(&parent_proc, log_pipes);
+    drop_pipes_that_non_rel(&parent_proc, log_pipes);
 
     verify_received_messages(&parent_proc, log_pipes, STARTED, log_events);
 

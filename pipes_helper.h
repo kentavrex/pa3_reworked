@@ -5,10 +5,10 @@
 
 #include "base_vars.h"
 
-void close_outcoming_pipes(Process* processes, FILE* pipe_file_ptr);
+void drop_pipes_that_out(Process* processes, FILE* pipe_file_ptr);
 
-void close_incoming_pipes(Process* processes, FILE* pipe_file_ptr);
+void drop_pipes_that_in(Process* processes, FILE* pipe_file_ptr);
 
-void close_non_related_pipes(Process* process, FILE* pipe_file_ptr);
+void drop_pipes_that_non_rel(Process* process, FILE* pipe_file_ptr);
 
 #endif
