@@ -13,8 +13,8 @@ void send_transfer_message(void *context_data, local_id initiator, local_id reci
     transfer_info.s_src = initiator;
     transfer_info.s_dst = recipient;
     transfer_info.s_amount = transfer_amount;
-    increment_lamport_time();
-    send_message(context_data, TRANSFER, &transfer_info);
+    lmprd_time_upgrade();
+    mess_to(context_data, TRANSFER, &transfer_info);
 }
 
 void noise_function3() {
@@ -39,7 +39,7 @@ void transfer(void *context_data, local_id initiator, local_id recipient, balanc
     send_transfer_message(context_data, initiator, recipient, transfer_amount);
     Message ack_message;
     receive_acknowledgement(context_data, recipient, &ack_message);
-    update_lamport_time(ack_message.s_header.s_local_time);
+    lmprd_time_update(ack_message.s_header.s_local_time);
 }
 
 void check_arguments(int argc, char *argv[], int *num_processes) {
@@ -122,13 +122,13 @@ void initialize_child_process(Process *child_proc, int i, int num_processes, Pip
 }
 
 void log_child_start(FILE *log_events, Process *child_proc, int i) {
-    add_to_history(&(child_proc->history), get_lamport_time(), child_proc->cur_balance, 0);
-    send_message(child_proc, STARTED, NULL);
+    update_chronicle(&(child_proc->history), get_lamport_time(), child_proc->cur_balance, 0);
+    mess_to(child_proc, STARTED, NULL);
     fprintf(log_events, log_started_fmt, get_lamport_time(), i, getpid(), getppid(), child_proc->cur_balance);
 }
 
 void check_child_start(Process *child_proc, FILE *log_events, int i) {
-    if (check_all_received(child_proc, STARTED) != 0) {
+    if (is_every_get(child_proc, STARTED) != 0) {
         fprintf(stderr, "Error: Process %d failed to receive all STARTED messages\n", i);
         exit(EXIT_FAILURE);
     }
@@ -136,7 +136,7 @@ void check_child_start(Process *child_proc, FILE *log_events, int i) {
 }
 
 void perform_bank_operations(Process *child_proc, FILE *log_events) {
-    bank_operations(child_proc, log_events);
+    ops_commands(child_proc, log_events);
 }
 
 void close_child_pipes(Process *child_proc, FILE *log_pipes) {
@@ -193,7 +193,7 @@ void handle_balances(int argc, char *argv[], int *balances, int num_processes) {
 }
 
 Pipe** initialize_pipes(int num_processes, FILE *log_pipes) {
-    return init_pipes(num_processes, log_pipes);
+    return create_pipes(num_processes, log_pipes);
 }
 
 void create_child_processes_and_handle_pipes(int num_processes, Pipe **pipes, int *balances, FILE *log_pipes, FILE *log_events) {
@@ -201,7 +201,7 @@ void create_child_processes_and_handle_pipes(int num_processes, Pipe **pipes, in
 }
 
 int verify_received_messages(Process *parent_proc, FILE *log_pipes, MessageType expected_type, FILE *log_events) {
-    if (check_all_received(parent_proc, expected_type) != 0) {
+    if (is_every_get(parent_proc, expected_type) != 0) {
         fprintf(stderr, "Error: Parent process failed to receive all %s messages\n", (expected_type == STARTED) ? "STARTED" : "DONE");
         cleanup(log_pipes, log_events);
         exit(EXIT_FAILURE);
@@ -212,12 +212,12 @@ int verify_received_messages(Process *parent_proc, FILE *log_pipes, MessageType 
 void handle_parent_process_logic(Process *parent_proc, FILE *log_events, FILE *log_pipes) {
     fprintf(log_events, log_received_all_started_fmt, get_lamport_time(), PARENT_ID);
     bank_robbery(parent_proc, parent_proc->num_process - 1);
-    send_message(parent_proc, STOP, NULL);
+    mess_to(parent_proc, STOP, NULL);
 
     verify_received_messages(parent_proc, log_pipes, DONE, log_events);
     fprintf(log_events, log_received_all_done_fmt, get_lamport_time(), PARENT_ID);
 
-    histories(parent_proc);
+    chronicle(parent_proc);
 }
 
 void close_pipes_and_cleanup(Process *parent_proc, FILE *log_pipes, FILE *log_events) {

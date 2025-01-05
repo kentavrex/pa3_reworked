@@ -22,8 +22,8 @@ void handle_stop(Process *process, FILE* event_file_ptr, int *is_stopped) {
         exit(1);
     }
 
-    increment_lamport_time();
-    if (send_message(process, DONE, NULL) == -1) {
+    lmprd_time_upgrade();
+    if (mess_to(process, DONE, NULL) == -1) {
         fprintf(stderr, "Error sending DONE message from process %d\n", process->pid);
         exit(1);
     }
@@ -38,7 +38,7 @@ timestamp_t get_lamport_time(void) {
 
 void handle_outgoing_transfer(Process *process, FILE* event_file_ptr, Message *msg, TransferOrder *order, timestamp_t time) {
     process->cur_balance -= order->s_amount;
-    add_to_history(&(process->history), time, process->cur_balance, order->s_amount);
+    update_chronicle(&(process->history), time, process->cur_balance, order->s_amount);
     fprintf(event_file_ptr, log_transfer_out_fmt, time, order->s_src, order->s_amount, order->s_dst);
     printf(log_transfer_out_fmt, time, order->s_src, order->s_amount, order->s_dst);
 
@@ -48,24 +48,24 @@ void handle_outgoing_transfer(Process *process, FILE* event_file_ptr, Message *m
     }
 }
 
-timestamp_t increment_lamport_time(void) {
+timestamp_t lmprd_time_upgrade(void) {
     lamport_time += 1;
     return lamport_time;
 }
 
 void handle_incoming_transfer(Process *process, FILE* event_file_ptr, TransferOrder *order) {
     process->cur_balance += order->s_amount;
-    add_to_history(&(process->history), get_lamport_time(), process->cur_balance, 0);
+    update_chronicle(&(process->history), get_lamport_time(), process->cur_balance, 0);
     fprintf(event_file_ptr, log_transfer_in_fmt, get_lamport_time(), order->s_dst, order->s_amount, order->s_src);
     printf(log_transfer_in_fmt, get_lamport_time(), order->s_dst, order->s_amount, order->s_src);
-    increment_lamport_time();
-    if (send_message(process, ACK, NULL) == -1) {
+    lmprd_time_upgrade();
+    if (mess_to(process, ACK, NULL) == -1) {
         fprintf(stderr, "Error sending ACK from process %d to process %d\n", process->pid, order->s_src);
     }
 }
 
 
-void update_lamport_time(timestamp_t received_time) {
+void lmprd_time_update(timestamp_t received_time) {
     if (received_time > lamport_time) {
         lamport_time = received_time;
     }
@@ -81,7 +81,7 @@ void handle_transfer(Process *process, FILE* event_file_ptr, Message *msg, Trans
             return;
         }
 
-        timestamp_t time = increment_lamport_time();
+        timestamp_t time = lmprd_time_upgrade();
         handle_outgoing_transfer(process, event_file_ptr, msg, order, time);
     } else {
         handle_incoming_transfer(process, event_file_ptr, order);
@@ -135,7 +135,7 @@ void collect_histories(Process* processes, AllHistory* collection) {
     }
 }
 
-void histories(Process* processes) {
+void chronicle(Process* processes) {
     AllHistory collection;
     collection.s_history_len = processes->num_process - 1;
     collect_histories(processes, &collection);
@@ -254,11 +254,11 @@ int is_all_done(Process *process, int count_done, int *is_stopped) {
 }
 
 void add_history_and_log(Process *process, FILE* event_file_ptr) {
-    add_to_history(&(process->history), get_lamport_time(), process->cur_balance, 0);
+    update_chronicle(&(process->history), get_lamport_time(), process->cur_balance, 0);
     printf(log_received_all_done_fmt, get_lamport_time(), process->pid);
     fprintf(event_file_ptr, log_received_all_done_fmt, get_lamport_time(), process->pid);
-    increment_lamport_time();
-    send_message(process, BALANCE_HISTORY, NULL);
+    lmprd_time_upgrade();
+    mess_to(process, BALANCE_HISTORY, NULL);
 }
 
 int receive_message(Process *process, Message *msg) {
@@ -289,7 +289,7 @@ int receive_message_from_process(Process *process, Message *msg) {
 }
 
 void update_lamport_clock_from_message(int local_time) {
-    update_lamport_time(local_time);
+    lmprd_time_update(local_time);
 }
 
 void process_message_and_update_state(Process *process, FILE *event_file_ptr, Message *msg, int *count_done, int *is_stopped) {
@@ -300,7 +300,7 @@ void log_event_and_history(Process *process, FILE *event_file_ptr) {
     add_history_and_log(process, event_file_ptr);
 }
 
-void bank_operations(Process *process, FILE* event_file_ptr) {
+void ops_commands(Process *process, FILE* event_file_ptr) {
     int count_done = 0;
     int is_stopped = 0;
     while(1) {
@@ -346,7 +346,7 @@ int send_started_message(Process* proc, Message* msg, timestamp_t current_time) 
         return -1;
     }
 
-    increment_lamport_time();
+    lmprd_time_upgrade();
     if (send_multicast(proc, msg) != 0) {
         fprintf(stderr, "[ERROR] Failed to multicast STARTED message from process %d.\n", proc->pid);
         return -1;
@@ -363,7 +363,7 @@ int send_done_message(Process* proc, Message* msg, timestamp_t current_time) {
         return -1;
     }
 
-    increment_lamport_time();
+    lmprd_time_upgrade();
     if (send_multicast(proc, msg) != 0) {
         fprintf(stderr, "[ERROR] Failed to multicast DONE message from process %d.\n", proc->pid);
         return -1;
@@ -382,7 +382,7 @@ int validate_transfer_order(TransferOrder* transfer_order) {
 void prepare_message(Message* msg, TransferOrder* transfer_order) {
     msg->s_header.s_payload_len = sizeof(TransferOrder);
     memcpy(msg->s_payload, transfer_order, sizeof(TransferOrder));
-    increment_lamport_time();
+    lmprd_time_upgrade();
 }
 
 int send_transfer_from_proc(Process* proc, TransferOrder* transfer_order, Message* msg) {
@@ -406,7 +406,7 @@ int send_transfer_message2(Process* proc, Message* msg, TransferOrder* transfer_
 }
 
 int send_stop_message(Process* proc, Message* msg) {
-    increment_lamport_time();
+    lmprd_time_upgrade();
     if (send_multicast(proc, msg) != 0) {
         fprintf(stderr, "[ERROR] Failed to multicast STOP message from process %d.\n", proc->pid);
         return -1;
@@ -478,7 +478,7 @@ int send_message_of_type(Process* proc, MessageType msg_type, Message* msg, Tran
     }
 }
 
-int send_message(Process* proc, MessageType msg_type, TransferOrder* transfer_order) {
+int mess_to(Process* proc, MessageType msg_type, TransferOrder* transfer_order) {
     int validation_result = validate_process(proc);
     if (validation_result != 0) {
         return validation_result;
@@ -490,7 +490,7 @@ int send_message(Process* proc, MessageType msg_type, TransferOrder* transfer_or
     }
 
     Message msg;
-    timestamp_t current_time = increment_lamport_time();
+    timestamp_t current_time = lmprd_time_upgrade();
     initialize_message(&msg, msg_type, current_time);
 
     return send_message_of_type(proc, msg_type, &msg, transfer_order);
@@ -522,7 +522,7 @@ void add_new_state(BalanceHistory* record, timestamp_t current_time, balance_t c
     record->s_history[record->s_history_len++] = new_state;
 }
 
-void add_to_history(BalanceHistory* record, timestamp_t current_time, balance_t cur_balance, balance_t delta) {
+void update_chronicle(BalanceHistory* record, timestamp_t current_time, balance_t cur_balance, balance_t delta) {
     if (record->s_history_len > 0) {
         BalanceState last_state = record->s_history[record->s_history_len - 1];
         timestamp_t last_recorded_time = last_state.s_time;
@@ -540,7 +540,7 @@ int handle_received_message(Process* process, int i, MessageType type, int* coun
         return -1;
     }
     if (msg.s_header.s_type == type) {
-        update_lamport_time(msg.s_header.s_local_time);
+        lmprd_time_update(msg.s_header.s_local_time);
         (*count)++;
     }
     return 0;
@@ -605,7 +605,7 @@ void create_pipe(Pipe* pipe_n) {
     }
 }
 
-int check_all_received(Process* process, MessageType type) {
+int is_every_get(Process* process, MessageType type) {
     int count = 0;
 
     int process_result = process_other_processes(process, type, &count);
@@ -634,7 +634,7 @@ void log_pipe(FILE* log_fp, int src, int dest, Pipe* pipe) {
             src, dest, pipe->fd[WRITE], pipe->fd[READ]);
 }
 
-Pipe** init_pipes(int process_count, FILE* log_fp) {
+Pipe** create_pipes(int process_count, FILE* log_fp) {
     Pipe** pipes = allocate_pipes(process_count);
     for (int src = 0; src < process_count; src++) {
         while (1){
