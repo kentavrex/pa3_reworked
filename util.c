@@ -7,26 +7,6 @@
 
 static timestamp_t lamport_time = 0;
 
-
-timestamp_t get_lamport_time(void) {
-    return lamport_time;
-}
-
-
-timestamp_t increment_lamport_time(void) {
-    lamport_time += 1;
-    return lamport_time;
-}
-
-
-void update_lamport_time(timestamp_t received_time) {
-    if (received_time > lamport_time) {
-        lamport_time = received_time;
-    }
-    lamport_time += 1; 
-}
-
-
 void handle_stop(Process *process, FILE* event_file_ptr, int *is_stopped) {
     (*is_stopped)++;
     if (*is_stopped > 1) {
@@ -44,6 +24,46 @@ void handle_stop(Process *process, FILE* event_file_ptr, int *is_stopped) {
     fprintf(event_file_ptr, log_done_fmt, get_lamport_time(), process->pid, process->cur_balance);
 }
 
+timestamp_t get_lamport_time(void) {
+    return lamport_time;
+}
+
+void handle_outgoing_transfer(Process *process, FILE* event_file_ptr, Message *msg, TransferOrder *order, timestamp_t time) {
+    process->cur_balance -= order->s_amount;
+    add_to_history(&(process->history), time, process->cur_balance, order->s_amount);
+    fprintf(event_file_ptr, log_transfer_out_fmt, time, order->s_src, order->s_amount, order->s_dst);
+    printf(log_transfer_out_fmt, time, order->s_src, order->s_amount, order->s_dst);
+
+    msg->s_header.s_local_time = time;
+    if (send(process, order->s_dst, msg) == -1) {
+        fprintf(stderr, "Error sending transfer from process %d to process %d\n", process->pid, order->s_dst);
+    }
+}
+
+timestamp_t increment_lamport_time(void) {
+    lamport_time += 1;
+    return lamport_time;
+}
+
+void handle_incoming_transfer(Process *process, FILE* event_file_ptr, TransferOrder *order) {
+    process->cur_balance += order->s_amount;
+    add_to_history(&(process->history), get_lamport_time(), process->cur_balance, 0);
+    fprintf(event_file_ptr, log_transfer_in_fmt, get_lamport_time(), order->s_dst, order->s_amount, order->s_src);
+    printf(log_transfer_in_fmt, get_lamport_time(), order->s_dst, order->s_amount, order->s_src);
+    increment_lamport_time();
+    if (send_message(process, ACK, NULL) == -1) {
+        fprintf(stderr, "Error sending ACK from process %d to process %d\n", process->pid, order->s_src);
+    }
+}
+
+
+void update_lamport_time(timestamp_t received_time) {
+    if (received_time > lamport_time) {
+        lamport_time = received_time;
+    }
+    lamport_time += 1; 
+}
+
 void handle_transfer(Process *process, FILE* event_file_ptr, Message *msg, TransferOrder *order) {
     printf("Order src number is %d WHILE PROCESS PID is %d\n", order->s_src, process->pid);
 
@@ -54,26 +74,9 @@ void handle_transfer(Process *process, FILE* event_file_ptr, Message *msg, Trans
         }
 
         timestamp_t time = increment_lamport_time();
-        process->cur_balance -= order->s_amount;
-        add_to_history(&(process->history), time, process->cur_balance, order->s_amount);
-        fprintf(event_file_ptr, log_transfer_out_fmt, time, order->s_src, order->s_amount, order->s_dst);
-        printf(log_transfer_out_fmt, time, order->s_src, order->s_amount, order->s_dst);
-
-        msg->s_header.s_local_time = time;
-        if (send(process, order->s_dst, msg) == -1) {
-            fprintf(stderr, "Error sending transfer from process %d to process %d\n", process->pid, order->s_dst);
-            return;
-        }
+        handle_outgoing_transfer(process, event_file_ptr, msg, order, time);
     } else {
-        process->cur_balance += order->s_amount;
-        add_to_history(&(process->history), get_lamport_time(), process->cur_balance, 0);
-        fprintf(event_file_ptr, log_transfer_in_fmt, get_lamport_time(), order->s_dst, order->s_amount, order->s_src);
-        printf(log_transfer_in_fmt, get_lamport_time(), order->s_dst, order->s_amount, order->s_src);
-        increment_lamport_time();
-        if (send_message(process, ACK, NULL) == -1) {
-            fprintf(stderr, "Error sending ACK from process %d to process %d\n", process->pid, order->s_src);
-            return;
-        }
+        handle_incoming_transfer(process, event_file_ptr, order);
     }
 }
 

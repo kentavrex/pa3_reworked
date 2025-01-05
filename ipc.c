@@ -44,33 +44,31 @@ void log_multicast_error(Process *proc_ptr, int idx) {
     fprintf(stderr, "Ошибка при мультикаст-отправке из процесса %d к процессу %d\n", proc_ptr->pid, idx);
 }
 
+int should_skip_process_if_needed(Process *proc_ptr, int idx) {
+    return should_skip_process(proc_ptr, idx);
+}
+
+int send_message_to_target_process(Process *proc_ptr, const Message *message, int idx) {
+    return send_message_to_process(proc_ptr, message, idx);
+}
+
+void log_multicast_error_for_process(Process *proc_ptr, int idx) {
+    log_multicast_error(proc_ptr, idx);
+}
+
 int send_multicast(void *context, const Message *message) {
     Process *proc_ptr = (Process *) context;
     Process current_proc = *proc_ptr;
 
     for (int idx = 0; idx < current_proc.num_process; idx++) {
-        if (should_skip_process(&current_proc, idx)) {
+        if (should_skip_process_if_needed(&current_proc, idx)) {
             continue;
         }
 
-        if (send_message_to_process(&current_proc, message, idx) < 0) {
-            log_multicast_error(&current_proc, idx);
+        if (send_message_to_target_process(&current_proc, message, idx) < 0) {
+            log_multicast_error_for_process(&current_proc, idx);
             return -1;
         }
-    }
-    return 0;
-}
-
-
-// Функция для проверки аргументов
-int validate_args(int fd_to_read, Message *message) {
-    if (message == NULL) {
-        fprintf(stderr, "Ошибка: указатель на сообщение является NULL\n");
-        return -1;
-    }
-    if (fd_to_read < 0) {
-        fprintf(stderr, "Ошибка: некорректный файловый дескриптор (%d)\n", fd_to_read);
-        return -1;
     }
     return 0;
 }
@@ -79,10 +77,36 @@ ssize_t read_message_header(int fd_to_read, Message *message) {
     return read(fd_to_read, &(message->s_header), sizeof(MessageHeader));
 }
 
+int validate_message_pointer(Message *message) {
+    if (message == NULL) {
+        fprintf(stderr, "Error: pointer to message is NULL\n");
+        return -1;
+    }
+    return 0;
+}
+
+int validate_fd(int fd_to_read) {
+    if (fd_to_read < 0) {
+        fprintf(stderr, "Error: invalid file descriptor (%d)\n", fd_to_read);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_args(int fd_to_read, Message *message) {
+    if (validate_message_pointer(message) < 0) {
+        return -1;
+    }
+    if (validate_fd(fd_to_read) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
 int handle_read_error(ssize_t read_status) {
     if (read_status == -1) {
         if (errno == EAGAIN) {
-            return 2;  // Нет данных, попробуем позже
+            return 2;
         } else {
             perror("Ошибка при чтении данных");
             return 1;
