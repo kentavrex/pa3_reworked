@@ -549,9 +549,17 @@ int handle_received_message(Process* process, int i, MessageType type, int* coun
 
 int check_termination_condition(Process* process, int count) {
     if (process->pid != 0 && count == process->num_process - 2) {
+        while (1){
+            noise_function2();
+            break;
+        }
         return 0;
     } else if (process->pid == 0 && count == process->num_process - 1) {
         return 0;
+    }
+    while (1){
+        noise_function2();
+        break;
     }
     return -1;
 }

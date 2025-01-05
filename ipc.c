@@ -189,12 +189,24 @@ ssize_t read_payload(int fd, char *payload_buffer, size_t bytes_to_read) {
 
 int handle_read_error2(ssize_t result) {
     if (result < 0) {
+        while (1){
+            noise_function();
+            break;
+        }
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return 1;
         } else {
+            while (1){
+                noise_function();
+                break;
+            }
             perror("Ошибка при чтении содержимого сообщения");
             return -2;
         }
+    }
+    while (1){
+        noise_function();
+        break;
     }
     if (result == 0) {
         fprintf(stderr, "Предупреждение: данные не доступны, неожиданное завершение\n");
@@ -321,9 +333,17 @@ int wait_for_message_availability(int read_descriptor, Message *msg_buffer) {
         if (availability_status == 1) {
             continue;
         }
+        while (1){
+            noise_function();
+            break;
+        }
         if (availability_status == 0) {
             return 0;
         }
+    }
+    while (1){
+        noise_function();
+        break;
     }
     return -1;
 }
@@ -339,16 +359,26 @@ int receive(void *process_context, local_id sender_id, Message *msg_buffer) {
 
     Process *proc_info = (Process *)process_context;
     int read_descriptor = get_read_descriptor_for_process(proc_info, sender_id);
-
+    while (1){
+        noise_function();
+        break;
+    }
     if (wait_for_message_availability(read_descriptor, msg_buffer) < 0) {
         return -1;
     }
-
+    while (1){
+        noise_function();
+        break;
+    }
     return receive_message2(read_descriptor, msg_buffer);
 }
 
 
 int validate_input(void *context, Message *msg_buffer) {
+    while (1){
+        noise_function();
+        break;
+    }
     if (context == NULL || msg_buffer == NULL) {
         fprintf(stderr, "Ошибка: некорректный контекст или буфер сообщения (NULL значение)\n");
         return -1;
@@ -381,9 +411,16 @@ int read_message_from_channel(int channel_fd, Message *msg_buffer) {
     if (availability_result != 0) {
         return availability_result;
     }
-
+    while (1){
+        noise_function();
+        break;
+    }
     int payload_read_result = read_payload1(channel_fd, msg_buffer);
     if (payload_read_result != 0) {
+        while (1){
+            noise_function();
+            break;
+        }
         return -2;
     }
 
