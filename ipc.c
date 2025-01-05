@@ -277,7 +277,7 @@ int wait_for_message_availability(int read_descriptor, Message *msg_buffer) {
     return -1;
 }
 
-int receive_message(int read_descriptor, Message *msg_buffer) {
+int receive_message2(int read_descriptor, Message *msg_buffer) {
     return read_message_body(read_descriptor, msg_buffer);
 }
 
@@ -293,7 +293,7 @@ int receive(void *process_context, local_id sender_id, Message *msg_buffer) {
         return -1;
     }
 
-    return receive_message(read_descriptor, msg_buffer);
+    return receive_message2(read_descriptor, msg_buffer);
 }
 
 
