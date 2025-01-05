@@ -502,19 +502,6 @@ int process_other_processes(Process* process, MessageType type, int *count) {
     return 0;
 }
 
-int check_all_received(Process* process, MessageType type) {
-    int count = 0;
-
-    int process_result = process_other_processes(process, type, &count);
-    if (process_result == -1) {
-        return -1;
-    }
-
-    return check_termination_condition(process, count);
-}
-
-
-
 Pipe** allocate_pipes(int process_count) {
     Pipe** pipes = (Pipe**) malloc(process_count * sizeof(Pipe*));
     for (int i = 0; i < process_count; i++) {
@@ -529,6 +516,18 @@ void create_pipe(Pipe* pipe_n) {
         exit(EXIT_FAILURE);
     }
 }
+
+int check_all_received(Process* process, MessageType type) {
+    int count = 0;
+
+    int process_result = process_other_processes(process, type, &count);
+    if (process_result == -1) {
+        return -1;
+    }
+
+    return check_termination_condition(process, count);
+}
+
 
 void set_non_blocking(int fd) {
     int flags = fcntl(fd, F_GETFL);
@@ -549,13 +548,11 @@ void log_pipe(FILE* log_fp, int src, int dest, Pipe* pipe) {
 
 Pipe** init_pipes(int process_count, FILE* log_fp) {
     Pipe** pipes = allocate_pipes(process_count);
-
     for (int src = 0; src < process_count; src++) {
         for (int dest = 0; dest < process_count; dest++) {
             if (src == dest) {
                 continue;
             }
-
             create_pipe(&pipes[src][dest]);
             set_non_blocking(pipes[src][dest].fd[READ]);
             set_non_blocking(pipes[src][dest].fd[WRITE]);

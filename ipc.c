@@ -305,21 +305,40 @@ int validate_input(void *context, Message *msg_buffer) {
     return 0;
 }
 
-int read_message_from_channel(int channel_fd, Message *msg_buffer) {
-    int availability_check = check(channel_fd, msg_buffer);
+int check_availability1(int channel_fd, Message *msg_buffer) {
+    return check(channel_fd, msg_buffer);
+}
+
+int read_payload1(int channel_fd, Message *msg_buffer) {
+    return message(channel_fd, msg_buffer);
+}
+
+int handle_check_result(int availability_check) {
     if (availability_check == 2) {
         return 1;
     }
     if (availability_check < 0) {
         return -1;
     }
+    return 0;
+}
 
-    int payload_read_result = message(channel_fd, msg_buffer);
+int read_message_from_channel(int channel_fd, Message *msg_buffer) {
+    int availability_check = check_availability1(channel_fd, msg_buffer);
+    int availability_result = handle_check_result(availability_check);
+
+    if (availability_result != 0) {
+        return availability_result;
+    }
+
+    int payload_read_result = read_payload1(channel_fd, msg_buffer);
     if (payload_read_result != 0) {
         return -2;
     }
+
     return 0;
 }
+
 
 int validate_input_and_return(void *context, Message *msg_buffer) {
     int validation_result = validate_input(context, msg_buffer);
