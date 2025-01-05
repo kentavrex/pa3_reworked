@@ -244,26 +244,47 @@ void close_non_related_pipes(Process* pipes, FILE* pipe_file_ptr) {
     }
 }
 
+int check_if_all_done(Process *process, int count_done, int *is_stopped) {
+    return is_all_done(process, count_done, is_stopped);
+}
+
+int receive_message_from_process(Process *process, Message *msg) {
+    if (receive_message(process, msg) == -1) {
+        return -1;
+    }
+    return 0;
+}
+
+void update_lamport_clock_from_message(int local_time) {
+    update_lamport_time(local_time);
+}
+
+void process_message_and_update_state(Process *process, FILE *event_file_ptr, Message *msg, int *count_done, int *is_stopped) {
+    handle_message(process, event_file_ptr, msg, count_done, is_stopped);
+}
+
+void log_event_and_history(Process *process, FILE *event_file_ptr) {
+    add_history_and_log(process, event_file_ptr);
+}
+
 void bank_operations(Process *process, FILE* event_file_ptr) {
     int count_done = 0;
     int is_stopped = 0;
     while(1) {
-        if (is_all_done(process, count_done, &is_stopped)) {
-            add_history_and_log(process, event_file_ptr);
+        if (check_if_all_done(process, count_done, &is_stopped)) {
+            log_event_and_history(process, event_file_ptr);
             return;
         }
-
         Message msg;
-        if (receive_message(process, &msg) == -1) {
+        if (receive_message_from_process(process, &msg) == -1) {
             exit(1);
         }
-
-        update_lamport_time(msg.s_header.s_local_time);
+        update_lamport_clock_from_message(msg.s_header.s_local_time);
         printf("%d\n", msg.s_header.s_type);
-
-        handle_message(process, event_file_ptr, &msg, &count_done, &is_stopped);
+        process_message_and_update_state(process, event_file_ptr, &msg, &count_done, &is_stopped);
     }
 }
+
 
 
 void log_pipe_closure2(FILE* pipe_file_ptr, int source, int pid, int read_fd, int write_fd) {
