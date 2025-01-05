@@ -306,22 +306,6 @@ int process_message(int src_id, Process active_proc, Message *msg_buffer) {
     return 0;
 }
 
-int try_receive_message_from_all_processes(Process *active_proc, Message *msg_buffer) {
-    for (local_id src_id = 0; src_id < active_proc->num_process; ++src_id) {
-        if (src_id == active_proc->pid) {
-            continue;
-        }
-        int result = process_message(src_id, *active_proc, msg_buffer);
-        if (result == 0) {
-            return 0;
-        }
-        if (result < 0) {
-            return result;
-        }
-    }
-    return -1;
-}
-
 int receive_any(void *context, Message *msg_buffer) {
     int validation_result = validate_input_and_return(context, msg_buffer);
     if (validation_result != 0) {
@@ -332,12 +316,17 @@ int receive_any(void *context, Message *msg_buffer) {
     Process active_proc = *proc_info;
 
     while (1) {
-        int result = try_receive_message_from_all_processes(&active_proc, msg_buffer);
-        if (result == 0) {
-            return 0;
-        }
-        if (result < 0) {
-            return result;
+        for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
+            if (src_id == active_proc.pid) {
+                continue;
+            }
+            int result = process_message(src_id, active_proc, msg_buffer);
+            if (result == 0) {
+                return 0;
+            }
+            if (result < 0) {
+                return result;
+            }
         }
     }
 
