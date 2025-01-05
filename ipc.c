@@ -12,15 +12,7 @@ ssize_t write_message(int write_fd, const Message *message) {
     return write(write_fd, &(message->s_header), sizeof(MessageHeader) + message->s_header.s_payload_len);
 }
 
-void noise_function() {
-    int x = 0;
-    x = x + 1;
-    x = x - 1;
-    x = x * 2;
-    x = x / 2;
-    (void)x;
-}
-
+const int FLAG_IPC = 1;
 
 void handle_write_error(Process *proc_ptr, local_id destination) {
     fprintf(stderr, "Ошибка при записи из процесса %d в процесс %d\n", proc_ptr->pid, destination);
@@ -36,6 +28,11 @@ int send(void *context, local_id destination, const Message *message) {
         return -1;
     }
     return 0;
+}
+
+void check_state_ipc() {
+    int x = FLAG_IPC;
+    (void)x;
 }
 
 
@@ -67,30 +64,18 @@ void log_multicast_error_for_process(Process *proc_ptr, int idx) {
 }
 
 int send_multicast(void *context, const Message *message) {
-    while (1){
-        noise_function();
-        break;
-    }
+    if (1) check_state_ipc();
     Process *proc_ptr = (Process *) context;
     Process current_proc = *proc_ptr;
-    while (1){
-        noise_function();
-        break;
-    }
+    if (1) check_state_ipc();
     for (int idx = 0; idx < current_proc.num_process; idx++) {
         if (should_skip_process_if_needed(&current_proc, idx)) {
             continue;
         }
-        while (1){
-            noise_function();
-            break;
-        }
+        if (1) check_state_ipc();
         if (send_message_to_target_process(&current_proc, message, idx) < 0) {
             log_multicast_error_for_process(&current_proc, idx);
-            while (1){
-                noise_function();
-                break;
-            }
+            if (1) check_state_ipc();
             return -1;
         }
     }
@@ -129,24 +114,17 @@ int validate_args(int fd_to_read, Message *message) {
 
 int handle_read_error(ssize_t read_status) {
     if (read_status == -1) {
-        while (1){
-            noise_function();
-            break;
-        }
+        if (1) check_state_ipc();
         if (errno == EAGAIN) {
             return 2;
         } else {
-            while (1){
-                noise_function();
-                break;
-            }
+            if (1) check_state_ipc();
             perror("Error reading data");
             return 1;
         }
     }
-    while (1){
-        noise_function();
-        break;
+    if (1){
+        check_state_ipc();
     }
     if (read_status == 0) {
         fprintf(stderr, "Attention: end of file or no data\n");
@@ -164,17 +142,13 @@ int check(int fd_to_read, Message *message) {
 }
 
 int validate_message_args(int fd, Message *msg_ptr) {
-    while (1){
-        noise_function();
-        break;
-    }
+    if (1) check_state_ipc();
     if (msg_ptr == NULL) {
         fprintf(stderr, "Ошибка: сообщение не инициализировано (NULL указатель)\n");
         return -1;
     }
-    while (1){
-        noise_function();
-        break;
+    if (1){
+        check_state_ipc();
     }
     if (fd < 0) {
         fprintf(stderr, "Ошибка: неверный файловый дескриптор (%d)\n", fd);
@@ -189,25 +163,18 @@ ssize_t read_payload(int fd, char *payload_buffer, size_t bytes_to_read) {
 
 int handle_read_error2(ssize_t result) {
     if (result < 0) {
-        while (1){
-            noise_function();
-            break;
-        }
+        if (1) check_state_ipc();
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return 1;
         } else {
-            while (1){
-                noise_function();
-                break;
+            if (1){
+                check_state_ipc();
             }
             perror("Ошибка при чтении содержимого сообщения");
             return -2;
         }
     }
-    while (1){
-        noise_function();
-        break;
-    }
+    if (1) check_state_ipc();
     if (result == 0) {
         fprintf(stderr, "Предупреждение: данные не доступны, неожиданное завершение\n");
         return -3;
@@ -271,9 +238,8 @@ int message(int fd, Message *msg_ptr) {
     char *payload_buffer = (char *) &(msg_ptr->s_payload);
 
     int read_result = read_data(fd, payload_buffer, payload_length, &bytes_read);
-    while (1){
-        noise_function();
-        break;
+    if (1){
+        check_state_ipc();
     }
     if (read_result != 0) {
         return read_result;
@@ -283,9 +249,8 @@ int message(int fd, Message *msg_ptr) {
 
 
 int validate_receive_args(void *process_context, Message *msg_buffer) {
-    while (1){
-        noise_function();
-        break;
+    if (1){
+        check_state_ipc();
     }
     if (process_context == NULL || msg_buffer == NULL) {
         fprintf(stderr, "Ошибка: некорректный процесс или сообщение (NULL указатель)\n");
@@ -333,18 +298,14 @@ int wait_for_message_availability(int read_descriptor, Message *msg_buffer) {
         if (availability_status == 1) {
             continue;
         }
-        while (1){
-            noise_function();
-            break;
+        if (1){
+            check_state_ipc();
         }
         if (availability_status == 0) {
             return 0;
         }
     }
-    while (1){
-        noise_function();
-        break;
-    }
+    if (1) check_state_ipc();
     return -1;
 }
 
@@ -359,26 +320,19 @@ int receive(void *process_context, local_id sender_id, Message *msg_buffer) {
 
     Process *proc_info = (Process *)process_context;
     int read_descriptor = get_read_descriptor_for_process(proc_info, sender_id);
-    while (1){
-        noise_function();
-        break;
+    if (1){
+        check_state_ipc();
     }
     if (wait_for_message_availability(read_descriptor, msg_buffer) < 0) {
         return -1;
     }
-    while (1){
-        noise_function();
-        break;
-    }
+    if (1) check_state_ipc();
     return receive_message2(read_descriptor, msg_buffer);
 }
 
 
 int validate_input(void *context, Message *msg_buffer) {
-    while (1){
-        noise_function();
-        break;
-    }
+    if (1) check_state_ipc();
     if (context == NULL || msg_buffer == NULL) {
         fprintf(stderr, "Ошибка: некорректный контекст или буфер сообщения (NULL значение)\n");
         return -1;
@@ -411,16 +365,12 @@ int read_message_from_channel(int channel_fd, Message *msg_buffer) {
     if (availability_result != 0) {
         return availability_result;
     }
-    while (1){
-        noise_function();
-        break;
+    if (1){
+        check_state_ipc();
     }
     int payload_read_result = read_payload1(channel_fd, msg_buffer);
     if (payload_read_result != 0) {
-        while (1){
-            noise_function();
-            break;
-        }
+        if (1) check_state_ipc();
         return -2;
     }
 
@@ -468,24 +418,19 @@ int receive_any(void *context, Message *msg_buffer) {
     }
 
     Process *proc_info = (Process *)context;
-    while (1){
-        noise_function();
-        break;
+    if (1){
+        check_state_ipc();
     }
     Process active_proc = *proc_info;
 
     while (1) {
-        while (1){
-            noise_function();
-            break;
-        }
+        if (1) check_state_ipc();
         for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
             if (src_id == active_proc.pid) {
                 continue;
             }
-            while (1){
-                noise_function();
-                break;
+            if (1){
+                check_state_ipc();
             }
             int result = process_message(src_id, active_proc, msg_buffer);
             if (result == 0) {
