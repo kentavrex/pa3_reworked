@@ -225,40 +225,59 @@ int receive(void *process_context, local_id sender_id, Message *msg_buffer) {
     return read_message_body(read_descriptor, msg_buffer);
 }
 
-
-int receive_any(void *context, Message *msg_buffer) {
+int validate_input(void *context, Message *msg_buffer) {
     if (context == NULL || msg_buffer == NULL) {
         fprintf(stderr, "Ошибка: некорректный контекст или буфер сообщения (NULL значение)\n");
         return -1;
     }
-    Process *proc_info = (Process *)context;
-    Process active_proc = *proc_info;
-    while (1) {
-        for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
-            if (src_id == active_proc.pid) {
-                continue;
-            }
-            int channel_fd = active_proc.pipes[src_id][active_proc.pid].fd[READ];
-            int availability_check = check(channel_fd, msg_buffer);
-            if (availability_check == 2) {
-                continue;
-            }
-            if (availability_check < 0) {
-                fprintf(stderr, "Процесс %d: ошибка при чтении заголовка от процесса %d\n",
-                        active_proc.pid, src_id);
-                return -2;
-            }
-            int payload_read_result = message(channel_fd, msg_buffer);
-            if (payload_read_result != 0) {
-                fprintf(stderr, "Процесс %d: ошибка при чтении тела сообщения от процесса %d\n",
-                        active_proc.pid, src_id);
-                return -3;
-            }
-            printf("Процесс %d: сообщение от процесса %d успешно получено и обработано\n",
-                   active_proc.pid, src_id);
-            return 0;
-        }
+    return 0;
+}
+
+int read_message_from_channel(int channel_fd, Message *msg_buffer) {
+    int availability_check = check(channel_fd, msg_buffer);
+    if (availability_check == 2) {
+        return 1;
     }
+    if (availability_check < 0) {
+        return -1;
+    }
+
+    int payload_read_result = message(channel_fd, msg_buffer);
+    if (payload_read_result != 0) {
+        return -2;
+    }
+    return 0;
+}
+
+int process_messages(Process *proc_info, Message *msg_buffer) {
+    Process active_proc = *proc_info;
+
+    for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
+        if (src_id == active_proc.pid) {
+            continue;
+        }
+        int channel_fd = active_proc.pipes[src_id][active_proc.pid].fd[READ];
+        int result = read_message_from_channel(channel_fd, msg_buffer);
+        if (result == 1) {
+            continue;
+        }
+        if (result < 0) {
+            fprintf(stderr, "Процесс %d: ошибка при чтении от процесса %d\n", active_proc.pid, src_id);
+            return result;
+        }
+        printf("Процесс %d: сообщение от процесса %d успешно получено и обработано\n", active_proc.pid, src_id);
+        return 0;
+    }
+
     fprintf(stderr, "Процесс %d: не удалось получить сообщение ни от одного процесса\n", active_proc.pid);
     return -4;
+}
+
+int receive_any(void *context, Message *msg_buffer) {
+    int validation_result = validate_input(context, msg_buffer);
+    if (validation_result != 0) {
+        return validation_result;
+    }
+
+    return process_messages((Process *)context, msg_buffer);
 }
