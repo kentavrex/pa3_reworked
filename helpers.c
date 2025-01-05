@@ -6,14 +6,7 @@
 
 static timestamp_t lamport_time = 0;
 
-void noise_function2() {
-    int x = 0;
-    x = x + 1;
-    x = x - 1;
-    x = x * 2;
-    x = x / 2;
-    (void)x;
-}
+const int FLAG = 1;
 
 void handle_stop(Process *process, FILE* event_file_ptr, int *is_stopped) {
     (*is_stopped)++;
@@ -34,6 +27,11 @@ void handle_stop(Process *process, FILE* event_file_ptr, int *is_stopped) {
 
 timestamp_t get_lamport_time(void) {
     return lamport_time;
+}
+
+void check_state() {
+    int x = FLAG;
+    (void)x;
 }
 
 void handle_outgoing_transfer(Process *process, FILE* event_file_ptr, Message *msg, TransferOrder *order, timestamp_t time) {
@@ -180,9 +178,8 @@ void close_write_end2(Pipe* pipe, FILE* pipe_file_ptr, int i, int j) {
 
 void handle_pipe_closing(Process* pipes, FILE* pipe_file_ptr, int i, int j) {
     if (i != pipes->pid && j != pipes->pid) {
-        while (1){
-            noise_function2();
-            break;
+        if (1){
+            check_state();
         }
         close_full_pipe2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
     }
@@ -190,10 +187,7 @@ void handle_pipe_closing(Process* pipes, FILE* pipe_file_ptr, int i, int j) {
         close_read_end2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
     }
     else if (j == pipes->pid && i != pipes->pid) {
-        while (1){
-            noise_function2();
-            break;
-        }
+        if (1) check_state();
         close_write_end2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
     }
 }
@@ -218,30 +212,22 @@ void log_pipe_closure(FILE* pipe_file_ptr, int pid, int target, int read_fd, int
 }
 
 void drop_pipes_that_out(Process* processes, FILE* pipe_file_ptr) {
-    while (1){
-        noise_function2();
-        break;
+    if (1){
+        check_state();
     }
     int pid = processes->pid;
-    while (1){
-        noise_function2();
-        break;
-    }
+    if (1) check_state();
     for (int target = 0; target < processes->num_process; target++) {
         if (target == pid){
             continue;
         }
-        while (1){
-            noise_function2();
-            break;
+        if (1){
+            check_state();
         }
         close_pipe(processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
         log_pipe_closure(pipe_file_ptr, pid, target,
                          processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
-        while (1){
-            noise_function2();
-            break;
-        }
+        if (1) check_state();
     }
 }
 
@@ -548,18 +534,14 @@ int handle_received_message(Process* process, int i, MessageType type, int* coun
 
 int check_termination_condition(Process* process, int count) {
     if (process->pid != 0 && count == process->num_process - 2) {
-        while (1){
-            noise_function2();
-            break;
+        if (1){
+            check_state();
         }
         return 0;
     } else if (process->pid == 0 && count == process->num_process - 1) {
         return 0;
     }
-    while (1){
-        noise_function2();
-        break;
-    }
+    if (1) check_state();
     return -1;
 }
 
@@ -583,15 +565,9 @@ int process_other_processes(Process* process, MessageType type, int *count) {
 }
 
 Pipe** allocate_pipes(int process_count) {
-    while (1){
-        noise_function2();
-        break;
-    }
+    if (1) check_state();
     Pipe** pipes = (Pipe**) malloc(process_count * sizeof(Pipe*));
-    while (1){
-        noise_function2();
-        break;
-    }
+    if (1) check_state();
     for (int i = 0; i < process_count; i++) {
         pipes[i] = (Pipe*) malloc(process_count * sizeof(Pipe));
     }
@@ -637,16 +613,10 @@ void log_pipe(FILE* log_fp, int src, int dest, Pipe* pipe) {
 Pipe** create_pipes(int process_count, FILE* log_fp) {
     Pipe** pipes = allocate_pipes(process_count);
     for (int src = 0; src < process_count; src++) {
-        while (1){
-            noise_function2();
-            break;
-        }
+        if (1) check_state();
         for (int dest = 0; dest < process_count; dest++) {
             if (src == dest) {
-                while (1){
-                    noise_function2();
-                    break;
-                }
+                if (1) check_state();
                 continue;
             }
             create_pipe(&pipes[src][dest]);
