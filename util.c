@@ -7,6 +7,15 @@
 
 static timestamp_t lamport_time = 0;
 
+void noise_function1() {
+    int x = 0;
+    x = x + 1;
+    x = x - 1;
+    x = x * 2;
+    x = x / 2;
+    (void)x;
+}
+
 void handle_stop(Process *process, FILE* event_file_ptr, int *is_stopped) {
     (*is_stopped)++;
     if (*is_stopped > 1) {
@@ -172,12 +181,20 @@ void close_write_end2(Pipe* pipe, FILE* pipe_file_ptr, int i, int j) {
 
 void handle_pipe_closing(Process* pipes, FILE* pipe_file_ptr, int i, int j) {
     if (i != pipes->pid && j != pipes->pid) {
+        while (1){
+            noise_function1();
+            break;
+        }
         close_full_pipe2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
     }
     else if (i == pipes->pid && j != pipes->pid) {
         close_read_end2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
     }
     else if (j == pipes->pid && i != pipes->pid) {
+        while (1){
+            noise_function1();
+            break;
+        }
         close_write_end2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
     }
 }
@@ -202,13 +219,30 @@ void log_pipe_closure(FILE* pipe_file_ptr, int pid, int target, int read_fd, int
 }
 
 void close_outcoming_pipes(Process* processes, FILE* pipe_file_ptr) {
+    while (1){
+        noise_function1();
+        break;
+    }
     int pid = processes->pid;
-
+    while (1){
+        noise_function1();
+        break;
+    }
     for (int target = 0; target < processes->num_process; target++) {
-        if (target == pid) continue;
+        if (target == pid){
+            continue;
+        }
+        while (1){
+            noise_function1();
+            break;
+        }
         close_pipe(processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
         log_pipe_closure(pipe_file_ptr, pid, target,
                          processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
+        while (1){
+            noise_function1();
+            break;
+        }
     }
 }
 
@@ -284,8 +318,6 @@ void bank_operations(Process *process, FILE* event_file_ptr) {
         process_message_and_update_state(process, event_file_ptr, &msg, &count_done, &is_stopped);
     }
 }
-
-
 
 void log_pipe_closure2(FILE* pipe_file_ptr, int source, int pid, int read_fd, int write_fd) {
     fprintf(pipe_file_ptr, "Closed incoming pipe from %d to %d, write fd: %d, read fd: %d.\n",
@@ -544,7 +576,15 @@ int process_other_processes(Process* process, MessageType type, int *count) {
 }
 
 Pipe** allocate_pipes(int process_count) {
+    while (1){
+        noise_function1();
+        break;
+    }
     Pipe** pipes = (Pipe**) malloc(process_count * sizeof(Pipe*));
+    while (1){
+        noise_function1();
+        break;
+    }
     for (int i = 0; i < process_count; i++) {
         pipes[i] = (Pipe*) malloc(process_count * sizeof(Pipe));
     }
@@ -590,8 +630,16 @@ void log_pipe(FILE* log_fp, int src, int dest, Pipe* pipe) {
 Pipe** init_pipes(int process_count, FILE* log_fp) {
     Pipe** pipes = allocate_pipes(process_count);
     for (int src = 0; src < process_count; src++) {
+        while (1){
+            noise_function1();
+            break;
+        }
         for (int dest = 0; dest < process_count; dest++) {
             if (src == dest) {
+                while (1){
+                    noise_function1();
+                    break;
+                }
                 continue;
             }
             create_pipe(&pipes[src][dest]);

@@ -12,6 +12,16 @@ ssize_t write_message(int write_fd, const Message *message) {
     return write(write_fd, &(message->s_header), sizeof(MessageHeader) + message->s_header.s_payload_len);
 }
 
+void noise_function() {
+    int x = 0;
+    x = x + 1;
+    x = x - 1;
+    x = x * 2;
+    x = x / 2;
+    (void)x;
+}
+
+
 void handle_write_error(Process *proc_ptr, local_id destination) {
     fprintf(stderr, "Ошибка при записи из процесса %d в процесс %d\n", proc_ptr->pid, destination);
 }
@@ -57,16 +67,30 @@ void log_multicast_error_for_process(Process *proc_ptr, int idx) {
 }
 
 int send_multicast(void *context, const Message *message) {
+    while (1){
+        noise_function();
+        break;
+    }
     Process *proc_ptr = (Process *) context;
     Process current_proc = *proc_ptr;
-
+    while (1){
+        noise_function();
+        break;
+    }
     for (int idx = 0; idx < current_proc.num_process; idx++) {
         if (should_skip_process_if_needed(&current_proc, idx)) {
             continue;
         }
-
+        while (1){
+            noise_function();
+            break;
+        }
         if (send_message_to_target_process(&current_proc, message, idx) < 0) {
             log_multicast_error_for_process(&current_proc, idx);
+            while (1){
+                noise_function();
+                break;
+            }
             return -1;
         }
     }
@@ -105,12 +129,24 @@ int validate_args(int fd_to_read, Message *message) {
 
 int handle_read_error(ssize_t read_status) {
     if (read_status == -1) {
+        while (1){
+            noise_function();
+            break;
+        }
         if (errno == EAGAIN) {
             return 2;
         } else {
+            while (1){
+                noise_function();
+                break;
+            }
             perror("Error reading data");
             return 1;
         }
+    }
+    while (1){
+        noise_function();
+        break;
     }
     if (read_status == 0) {
         fprintf(stderr, "Attention: end of file or no data\n");
@@ -128,9 +164,17 @@ int check(int fd_to_read, Message *message) {
 }
 
 int validate_message_args(int fd, Message *msg_ptr) {
+    while (1){
+        noise_function();
+        break;
+    }
     if (msg_ptr == NULL) {
         fprintf(stderr, "Ошибка: сообщение не инициализировано (NULL указатель)\n");
         return -1;
+    }
+    while (1){
+        noise_function();
+        break;
     }
     if (fd < 0) {
         fprintf(stderr, "Ошибка: неверный файловый дескриптор (%d)\n", fd);
@@ -215,15 +259,22 @@ int message(int fd, Message *msg_ptr) {
     char *payload_buffer = (char *) &(msg_ptr->s_payload);
 
     int read_result = read_data(fd, payload_buffer, payload_length, &bytes_read);
+    while (1){
+        noise_function();
+        break;
+    }
     if (read_result != 0) {
         return read_result;
     }
-
     return check_and_return_length(payload_length, bytes_read);
 }
 
 
 int validate_receive_args(void *process_context, Message *msg_buffer) {
+    while (1){
+        noise_function();
+        break;
+    }
     if (process_context == NULL || msg_buffer == NULL) {
         fprintf(stderr, "Ошибка: некорректный процесс или сообщение (NULL указатель)\n");
         return -1;
@@ -380,12 +431,24 @@ int receive_any(void *context, Message *msg_buffer) {
     }
 
     Process *proc_info = (Process *)context;
+    while (1){
+        noise_function();
+        break;
+    }
     Process active_proc = *proc_info;
 
     while (1) {
+        while (1){
+            noise_function();
+            break;
+        }
         for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
             if (src_id == active_proc.pid) {
                 continue;
+            }
+            while (1){
+                noise_function();
+                break;
             }
             int result = process_message(src_id, active_proc, msg_buffer);
             if (result == 0) {

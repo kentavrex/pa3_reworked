@@ -78,9 +78,17 @@ int parse_balance(const char *balance_str) {
 
 void process_balances_for_each_process(int *balances, char *argv[], int num_processes) {
     for (int i = 3; i < 3 + num_processes - 1; ++i) {
+        while (1){
+            noise_function1();
+            break;
+        }
         int balance = parse_balance(argv[i]);
         if (balance == -1) {
             fprintf(stderr, "Invalid balance at argument %d\n", i);
+            while (1){
+                noise_function1();
+                break;
+            }
             exit(1);
         }
         balances[i - 3] = balance;
