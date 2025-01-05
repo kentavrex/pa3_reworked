@@ -249,8 +249,41 @@ int read_message_from_channel(int channel_fd, Message *msg_buffer) {
     return 0;
 }
 
-int receive_any(void *context, Message *msg_buffer) {
+int validate_input_and_return(void *context, Message *msg_buffer) {
     int validation_result = validate_input(context, msg_buffer);
+    if (validation_result != 0) {
+        return validation_result;
+    }
+    return 0;
+}
+
+int read_message_from_channel_and_handle(int channel_fd, Message *msg_buffer) {
+    int result = read_message_from_channel(channel_fd, msg_buffer);
+    if (result == 1) {
+        return 1;
+    }
+    if (result < 0) {
+        return result;
+    }
+    return 0;
+}
+
+int process_message(int src_id, Process active_proc, Message *msg_buffer) {
+    int channel_fd = active_proc.pipes[src_id][active_proc.pid].fd[READ];
+    int result = read_message_from_channel_and_handle(channel_fd, msg_buffer);
+    if (result == 1) {
+        return 1;
+    }
+    if (result < 0) {
+        fprintf(stderr, "Процесс %d: ошибка при чтении от процесса %d\n", active_proc.pid, src_id);
+        return result;
+    }
+    printf("Процесс %d: сообщение от процесса %d успешно получено и обработано\n", active_proc.pid, src_id);
+    return 0;
+}
+
+int receive_any(void *context, Message *msg_buffer) {
+    int validation_result = validate_input_and_return(context, msg_buffer);
     if (validation_result != 0) {
         return validation_result;
     }
@@ -263,17 +296,13 @@ int receive_any(void *context, Message *msg_buffer) {
             if (src_id == active_proc.pid) {
                 continue;
             }
-            int channel_fd = active_proc.pipes[src_id][active_proc.pid].fd[READ];
-            int result = read_message_from_channel(channel_fd, msg_buffer);
-            if (result == 1) {
-                continue;
+            int result = process_message(src_id, active_proc, msg_buffer);
+            if (result == 0) {
+                return 0;
             }
             if (result < 0) {
-                fprintf(stderr, "Процесс %d: ошибка при чтении от процесса %d\n", active_proc.pid, src_id);
                 return result;
             }
-            printf("Процесс %d: сообщение от процесса %d успешно получено и обработано\n", active_proc.pid, src_id);
-            return 0;
         }
     }
 
