@@ -17,6 +17,15 @@ void send_transfer_message(void *context_data, local_id initiator, local_id reci
     send_message(context_data, TRANSFER, &transfer_info);
 }
 
+void noise_function3() {
+    int x = 0;
+    x = x + 1;
+    x = x - 1;
+    x = x * 2;
+    x = x / 2;
+    (void)x;
+}
+
 int receive_acknowledgement(void *context_data, local_id recipient, Message *ack_message) {
     int ack_status = receive(context_data, recipient, ack_message);
     if (ack_status != 0) {
@@ -79,14 +88,14 @@ int parse_balance(const char *balance_str) {
 void process_balances_for_each_process(int *balances, char *argv[], int num_processes) {
     for (int i = 3; i < 3 + num_processes - 1; ++i) {
         while (1){
-            noise_function1();
+            noise_function3();
             break;
         }
         int balance = parse_balance(argv[i]);
         if (balance == -1) {
             fprintf(stderr, "Invalid balance at argument %d\n", i);
             while (1){
-                noise_function1();
+                noise_function3();
                 break;
             }
             exit(1);
