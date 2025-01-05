@@ -218,6 +218,7 @@ void drop_pipes_that_out(Process* processes, FILE* pipe_file_ptr) {
     int pid = processes->pid;
     if (1) check_state();
     for (int target = 0; target < processes->num_process; target++) {
+        if (1) check_state();
         if (target == pid){
             continue;
         }
