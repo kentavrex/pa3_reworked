@@ -169,29 +169,57 @@ int check_payload_length(size_t expected_length, size_t bytes_read) {
     }
 }
 
-int message(int fd, Message *msg_ptr) {
+int validate_args1(int fd, Message *msg_ptr) {
     if (validate_message_args(fd, msg_ptr) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+int handle_empty_payload(size_t payload_length) {
+    if (payload_length == 0) {
+        return 0;
+    }
+    return -1;
+}
+
+int read_data(int fd, char *payload_buffer, size_t payload_length, size_t *bytes_read) {
+    while (*bytes_read < payload_length) {
+        ssize_t result = read_payload(fd, payload_buffer + *bytes_read, payload_length - *bytes_read);
+        int error_code = handle_read_error2(result);
+        if (error_code != 0) {
+            return error_code;
+        }
+        *bytes_read += result;
+    }
+    return 0;
+}
+
+int check_and_return_length(size_t payload_length, size_t bytes_read) {
+    return check_payload_length(payload_length, bytes_read);
+}
+
+int message(int fd, Message *msg_ptr) {
+    int validation_result = validate_args1(fd, msg_ptr);
+    if (validation_result < 0) {
         return -1;
     }
 
     size_t payload_length = msg_ptr->s_header.s_payload_len;
-    if (payload_length == 0) {
+    int empty_payload_result = handle_empty_payload(payload_length);
+    if (empty_payload_result == 0) {
         return 0;
     }
 
     size_t bytes_read = 0;
     char *payload_buffer = (char *) &(msg_ptr->s_payload);
 
-    while (bytes_read < payload_length) {
-        ssize_t result = read_payload(fd, payload_buffer + bytes_read, payload_length - bytes_read);
-        int error_code = handle_read_error2(result);
-        if (error_code != 0) {
-            return error_code;
-        }
-        bytes_read += result;
+    int read_result = read_data(fd, payload_buffer, payload_length, &bytes_read);
+    if (read_result != 0) {
+        return read_result;
     }
 
-    return check_payload_length(payload_length, bytes_read);
+    return check_and_return_length(payload_length, bytes_read);
 }
 
 

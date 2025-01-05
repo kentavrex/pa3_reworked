@@ -462,17 +462,36 @@ int check_termination_condition(Process* process, int count) {
     return -1;
 }
 
-int check_all_received(Process* process, MessageType type) {
-    int count = 0;
+int handle_received_message_for_process(Process* process, int i, MessageType type, int *count) {
+    if (handle_received_message(process, i, type, count) == -1) {
+        return -1;
+    }
+    return 0;
+}
+
+int process_other_processes(Process* process, MessageType type, int *count) {
     for (int i = 1; i < process->num_process; i++) {
         if (i != process->pid) {
-            if (handle_received_message(process, i, type, &count) == -1) {
+            int result = handle_received_message_for_process(process, i, type, count);
+            if (result == -1) {
                 return -1;
             }
         }
     }
+    return 0;
+}
+
+int check_all_received(Process* process, MessageType type) {
+    int count = 0;
+
+    int process_result = process_other_processes(process, type, &count);
+    if (process_result == -1) {
+        return -1;
+    }
+
     return check_termination_condition(process, count);
 }
+
 
 
 Pipe** allocate_pipes(int process_count) {
