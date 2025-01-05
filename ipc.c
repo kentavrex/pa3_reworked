@@ -226,57 +226,29 @@ int receive(void *process_context, local_id sender_id, Message *msg_buffer) {
 }
 
 
-int validate_receive_any_args(void *context, Message *msg_buffer) {
+int receive_any(void *context, Message *msg_buffer) {
     if (context == NULL || msg_buffer == NULL) {
         fprintf(stderr, "Ошибка: некорректный контекст или буфер сообщения (NULL значение)\n");
         return -1;
     }
-    return 0;
-}
-
-int check_message_availability(int channel_fd, Message *msg_buffer) {
-    int availability_check = check(channel_fd, msg_buffer);
-    if (availability_check == 2) {
-        return 1;
-    }
-    if (availability_check < 0) {
-        return 0;
-    }
-    return 0;
-}
-
-int read_message_body_from_channel(int channel_fd, Message *msg_buffer) {
-    int payload_read_result = message(channel_fd, msg_buffer);
-    if (payload_read_result != 0) {
-        return -3;
-    }
-    return 0;
-}
-
-int receive_any(void *context, Message *msg_buffer) {
-    if (validate_receive_any_args(context, msg_buffer) < 0) {
-        return -1;
-    }
-
     Process *proc_info = (Process *)context;
     Process active_proc = *proc_info;
-
     while (1) {
         for (local_id src_id = 0; src_id < active_proc.num_process; ++src_id) {
             if (src_id == active_proc.pid) {
                 continue;
             }
             int channel_fd = active_proc.pipes[src_id][active_proc.pid].fd[READ];
-            int availability_check = check_message_availability(channel_fd, msg_buffer);
-            if (availability_check == 1) {
+            int availability_check = check(channel_fd, msg_buffer);
+            if (availability_check == 2) {
                 continue;
             }
-            if (availability_check == 0) {
+            if (availability_check < 0) {
                 fprintf(stderr, "Процесс %d: ошибка при чтении заголовка от процесса %d\n",
                         active_proc.pid, src_id);
                 return -2;
             }
-            int payload_read_result = read_message_body_from_channel(channel_fd, msg_buffer);
+            int payload_read_result = message(channel_fd, msg_buffer);
             if (payload_read_result != 0) {
                 fprintf(stderr, "Процесс %d: ошибка при чтении тела сообщения от процесса %d\n",
                         active_proc.pid, src_id);
