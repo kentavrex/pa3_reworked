@@ -101,32 +101,6 @@ void handle_message(Process *process, FILE* event_file_ptr, Message *msg, int *c
     }
 }
 
-void bank_operations(Process *process, FILE* event_file_ptr) {
-    int count_done = 0;
-    int is_stopped = 0;
-    while(1) {
-        if (is_stopped && (count_done == process->num_process - 2)) {
-            add_to_history(&(process->history), get_lamport_time(), process->cur_balance, 0);
-            printf(log_received_all_done_fmt, get_lamport_time(), process->pid);
-            fprintf(event_file_ptr, log_received_all_done_fmt, get_lamport_time(), process->pid);
-            increment_lamport_time();
-            send_message(process, BALANCE_HISTORY, NULL);
-            return;
-        }
-
-        Message msg;
-        if (receive_any(process, &msg) == -1) {
-            printf("Error receiving message at bank operations\n");
-            exit(1);
-        }
-
-        update_lamport_time(msg.s_header.s_local_time);
-        printf("%d\n", msg.s_header.s_type);
-
-        handle_message(process, event_file_ptr, &msg, &count_done, &is_stopped);
-    }
-}
-
 
 void get_history_from_process(Process* processes, local_id idx, BalanceHistory *received_history) {
     Message received_msg;
@@ -177,50 +151,136 @@ void close_write_end(Pipe* pipe, FILE* pipe_file_ptr, int i, int j) {
             i, j, pipe->fd[WRITE]);
 }
 
-void close_non_related_pipes(Process* pipes, FILE* pipe_file_ptr) {
-    int n = pipes->num_process;
+void close_full_pipe2(Pipe* pipe, FILE* pipe_file_ptr, int i, int j) {
+    close(pipe->fd[READ]);
+    close(pipe->fd[WRITE]);
+    fprintf(pipe_file_ptr, "Closed pipe between process %d and %d\n", i, j);
+}
 
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if (i != j) {
-                if (i != pipes->pid && j != pipes->pid) {
-                    close_full_pipe(&pipes->pipes[i][j], pipe_file_ptr, i, j);
-                }
-                else if (i == pipes->pid && j != pipes->pid) {
-                    close_read_end(&pipes->pipes[i][j], pipe_file_ptr, i, j);
-                }
-                else if (j == pipes->pid && i != pipes->pid) {
-                    close_write_end(&pipes->pipes[i][j], pipe_file_ptr, i, j);
-                }
-            }
+void close_read_end2(Pipe* pipe, FILE* pipe_file_ptr, int i, int j) {
+    close(pipe->fd[READ]);
+    fprintf(pipe_file_ptr, "Closed read end of pipe between process %d and %d\n", i, j);
+}
+
+void close_write_end2(Pipe* pipe, FILE* pipe_file_ptr, int i, int j) {
+    close(pipe->fd[WRITE]);
+    fprintf(pipe_file_ptr, "Closed write end of pipe between process %d and %d\n", i, j);
+}
+
+void handle_pipe_closing(Process* pipes, FILE* pipe_file_ptr, int i, int j) {
+    if (i != pipes->pid && j != pipes->pid) {
+        close_full_pipe2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
+    }
+    else if (i == pipes->pid && j != pipes->pid) {
+        close_read_end2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
+    }
+    else if (j == pipes->pid && i != pipes->pid) {
+        close_write_end2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
+    }
+}
+
+
+void close_pipes_for_process(Process* pipes, FILE* pipe_file_ptr, int i, int n) {
+    for (int j = 0; j < n; j++) {
+        if (i != j) {
+            handle_pipe_closing(pipes, pipe_file_ptr, i, j);
         }
     }
 }
 
+void close_pipe(int read_fd, int write_fd) {
+    close(read_fd);
+    close(write_fd);
+}
+
+void log_pipe_closure(FILE* pipe_file_ptr, int pid, int target, int read_fd, int write_fd) {
+    fprintf(pipe_file_ptr, "Closed outgoing pipe from %d to %d, write fd: %d, read fd: %d.\n",
+            pid, target, write_fd, read_fd);
+}
 
 void close_outcoming_pipes(Process* processes, FILE* pipe_file_ptr) {
     int pid = processes->pid;
 
     for (int target = 0; target < processes->num_process; target++) {
         if (target == pid) continue;
-        close(processes->pipes[pid][target].fd[READ]);
-        close(processes->pipes[pid][target].fd[WRITE]);
-        fprintf(pipe_file_ptr, "Closed outgoing pipe from %d to %d, write fd: %d, read fd: %d.\n",
-                pid, target, processes->pipes[pid][target].fd[WRITE], processes->pipes[pid][target].fd[READ]);
+        close_pipe(processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
+        log_pipe_closure(pipe_file_ptr, pid, target,
+                         processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
     }
+}
+
+
+int is_all_done(Process *process, int count_done, int *is_stopped) {
+    if (*is_stopped && (count_done == process->num_process - 2)) {
+        return 1;
+    }
+    return 0;
+}
+
+void add_history_and_log(Process *process, FILE* event_file_ptr) {
+    add_to_history(&(process->history), get_lamport_time(), process->cur_balance, 0);
+    printf(log_received_all_done_fmt, get_lamport_time(), process->pid);
+    fprintf(event_file_ptr, log_received_all_done_fmt, get_lamport_time(), process->pid);
+    increment_lamport_time();
+    send_message(process, BALANCE_HISTORY, NULL);
+}
+
+int receive_message(Process *process, Message *msg) {
+    if (receive_any(process, msg) == -1) {
+        printf("Error receiving message at bank operations\n");
+        return -1;
+    }
+    return 0;
+}
+
+void close_non_related_pipes(Process* pipes, FILE* pipe_file_ptr) {
+    int n = pipes->num_process;
+
+    for (int i = 0; i < n; i++) {
+        close_pipes_for_process(pipes, pipe_file_ptr, i, n);
+    }
+}
+
+void bank_operations(Process *process, FILE* event_file_ptr) {
+    int count_done = 0;
+    int is_stopped = 0;
+    while(1) {
+        if (is_all_done(process, count_done, &is_stopped)) {
+            add_history_and_log(process, event_file_ptr);
+            return;
+        }
+
+        Message msg;
+        if (receive_message(process, &msg) == -1) {
+            exit(1);
+        }
+
+        update_lamport_time(msg.s_header.s_local_time);
+        printf("%d\n", msg.s_header.s_type);
+
+        handle_message(process, event_file_ptr, &msg, &count_done, &is_stopped);
+    }
+}
+
+
+void log_pipe_closure2(FILE* pipe_file_ptr, int source, int pid, int read_fd, int write_fd) {
+    fprintf(pipe_file_ptr, "Closed incoming pipe from %d to %d, write fd: %d, read fd: %d.\n",
+            source, pid, write_fd, read_fd);
 }
 
 void close_incoming_pipes(Process* processes, FILE* pipe_file_ptr) {
     int pid = processes->pid;
 
     for (int source = 0; source < processes->num_process; source++) {
-        if (source == pid) continue;
-        close(processes->pipes[source][pid].fd[READ]);
-        close(processes->pipes[source][pid].fd[WRITE]);
-        fprintf(pipe_file_ptr, "Closed incoming pipe from %d to %d, write fd: %d, read fd: %d.\n",
-                source, pid, processes->pipes[source][pid].fd[WRITE], processes->pipes[source][pid].fd[READ]);
+        if (source == pid){
+            continue;
+        }
+        close_pipe(processes->pipes[source][pid].fd[READ], processes->pipes[source][pid].fd[WRITE]);
+        log_pipe_closure2(pipe_file_ptr, source, pid,
+                          processes->pipes[source][pid].fd[READ], processes->pipes[source][pid].fd[WRITE]);
     }
 }
+
 
 int send_started_message(Process* proc, Message* msg, timestamp_t current_time) {
     int payload_size = snprintf(msg->s_payload, sizeof(msg->s_payload), log_started_fmt,
