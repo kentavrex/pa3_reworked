@@ -340,22 +340,38 @@ int send_done_message(Process* proc, Message* msg, timestamp_t current_time) {
     return 0;
 }
 
-int send_transfer_message2(Process* proc, Message* msg, TransferOrder* transfer_order) {
+int validate_transfer_order(TransferOrder* transfer_order) {
     if (transfer_order == NULL) {
         fprintf(stderr, "[ERROR] Transfer order is NULL.\n");
         return -1;
     }
+    return 0;
+}
 
+void prepare_message(Message* msg, TransferOrder* transfer_order) {
     msg->s_header.s_payload_len = sizeof(TransferOrder);
     memcpy(msg->s_payload, transfer_order, sizeof(TransferOrder));
     increment_lamport_time();
+}
 
+int send_transfer_from_proc(Process* proc, TransferOrder* transfer_order, Message* msg) {
     if (send(proc, transfer_order->s_src, msg) != 0) {
         fprintf(stderr, "[ERROR] Failed to send TRANSFER message from process %d to process %d.\n",
                 proc->pid, transfer_order->s_src);
         return -1;
     }
     return 0;
+}
+
+int send_transfer_message2(Process* proc, Message* msg, TransferOrder* transfer_order) {
+    int validation_result = validate_transfer_order(transfer_order);
+    if (validation_result != 0) {
+        return validation_result;
+    }
+
+    prepare_message(msg, transfer_order);
+
+    return send_transfer_from_proc(proc, transfer_order, msg);
 }
 
 int send_stop_message(Process* proc, Message* msg) {
