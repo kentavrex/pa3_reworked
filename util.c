@@ -7,7 +7,7 @@
 
 static timestamp_t lamport_time = 0;
 
-void noise_function1() {
+void noise_function2() {
     int x = 0;
     x = x + 1;
     x = x - 1;
@@ -182,7 +182,7 @@ void close_write_end2(Pipe* pipe, FILE* pipe_file_ptr, int i, int j) {
 void handle_pipe_closing(Process* pipes, FILE* pipe_file_ptr, int i, int j) {
     if (i != pipes->pid && j != pipes->pid) {
         while (1){
-            noise_function1();
+            noise_function2();
             break;
         }
         close_full_pipe2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
@@ -192,7 +192,7 @@ void handle_pipe_closing(Process* pipes, FILE* pipe_file_ptr, int i, int j) {
     }
     else if (j == pipes->pid && i != pipes->pid) {
         while (1){
-            noise_function1();
+            noise_function2();
             break;
         }
         close_write_end2(&pipes->pipes[i][j], pipe_file_ptr, i, j);
@@ -220,12 +220,12 @@ void log_pipe_closure(FILE* pipe_file_ptr, int pid, int target, int read_fd, int
 
 void close_outcoming_pipes(Process* processes, FILE* pipe_file_ptr) {
     while (1){
-        noise_function1();
+        noise_function2();
         break;
     }
     int pid = processes->pid;
     while (1){
-        noise_function1();
+        noise_function2();
         break;
     }
     for (int target = 0; target < processes->num_process; target++) {
@@ -233,14 +233,14 @@ void close_outcoming_pipes(Process* processes, FILE* pipe_file_ptr) {
             continue;
         }
         while (1){
-            noise_function1();
+            noise_function2();
             break;
         }
         close_pipe(processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
         log_pipe_closure(pipe_file_ptr, pid, target,
                          processes->pipes[pid][target].fd[READ], processes->pipes[pid][target].fd[WRITE]);
         while (1){
-            noise_function1();
+            noise_function2();
             break;
         }
     }
@@ -577,12 +577,12 @@ int process_other_processes(Process* process, MessageType type, int *count) {
 
 Pipe** allocate_pipes(int process_count) {
     while (1){
-        noise_function1();
+        noise_function2();
         break;
     }
     Pipe** pipes = (Pipe**) malloc(process_count * sizeof(Pipe*));
     while (1){
-        noise_function1();
+        noise_function2();
         break;
     }
     for (int i = 0; i < process_count; i++) {
@@ -631,13 +631,13 @@ Pipe** init_pipes(int process_count, FILE* log_fp) {
     Pipe** pipes = allocate_pipes(process_count);
     for (int src = 0; src < process_count; src++) {
         while (1){
-            noise_function1();
+            noise_function2();
             break;
         }
         for (int dest = 0; dest < process_count; dest++) {
             if (src == dest) {
                 while (1){
-                    noise_function1();
+                    noise_function2();
                     break;
                 }
                 continue;
