@@ -60,19 +60,39 @@ void init_log_files(FILE **log_pipes, FILE **log_events) {
     }
 }
 
-void process_balances(int argc, char *argv[], int *balances, int num_processes) {
+int validate_argument_count(int argc, int num_processes) {
     if (argc < num_processes + 2) {
         fprintf(stderr, "Provide initial balance values for each process\n");
-        exit(1);
+        return 0;
     }
+    return 1;
+}
+
+int parse_balance(const char *balance_str) {
+    int balance = atoi(balance_str);
+    if (balance < 1 || balance > 99) {
+        return -1;
+    }
+    return balance;
+}
+
+void process_balances_for_each_process(int *balances, char *argv[], int num_processes) {
     for (int i = 3; i < 3 + num_processes - 1; ++i) {
-        int balance = atoi(argv[i]);
-        if (balance < 1 || balance > 99) {
+        int balance = parse_balance(argv[i]);
+        if (balance == -1) {
             fprintf(stderr, "Invalid balance at argument %d\n", i);
             exit(1);
         }
         balances[i - 3] = balance;
     }
+}
+
+void process_balances(int argc, char *argv[], int *balances, int num_processes) {
+    if (!validate_argument_count(argc, num_processes)) {
+        exit(1);
+    }
+
+    process_balances_for_each_process(balances, argv, num_processes);
 }
 
 void initialize_child_process(Process *child_proc, int i, int num_processes, Pipe **pipes, int *balances) {
