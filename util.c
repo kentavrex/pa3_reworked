@@ -256,7 +256,7 @@ int send_done_message(Process* proc, Message* msg, timestamp_t current_time) {
     return 0;
 }
 
-int send_transfer_message(Process* proc, Message* msg, TransferOrder* transfer_order) {
+int send_transfer_message2(Process* proc, Message* msg, TransferOrder* transfer_order) {
     if (transfer_order == NULL) {
         fprintf(stderr, "[ERROR] Transfer order is NULL.\n");
         return -1;
@@ -328,7 +328,7 @@ int send_message(Process* proc, MessageType msg_type, TransferOrder* transfer_or
         case DONE:
             return send_done_message(proc, &msg, current_time);
         case TRANSFER:
-            return send_transfer_message(proc, &msg, transfer_order);
+            return send_transfer_message2(proc, &msg, transfer_order);
         case STOP:
             return send_stop_message(proc, &msg);
         case ACK:
