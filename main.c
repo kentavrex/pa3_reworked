@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
     Process parent_proc = {.num_process = num_processes, .pipes = pipes, .pid = PARENT_ID};
     close_non_related_pipes(&parent_proc, log_pipes);
 
-    verify_received_messages(&parent_proc, STARTED, log_events);
+    verify_received_messages(&parent_proc, log_pipes, STARTED, log_events);
 
     handle_parent_process_logic(&parent_proc, log_events, log_pipes);
     close_pipes_and_cleanup(&parent_proc, log_pipes, log_events);
